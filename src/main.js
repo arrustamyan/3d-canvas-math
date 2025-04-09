@@ -74,8 +74,8 @@ class Matrix4 {
   }
 }
 
-class Group {
-  points = []
+class Mesh {
+  vertices = []
   transformationMatrix = new Matrix4()
 
   /**
@@ -83,7 +83,7 @@ class Group {
    * @param {Vector4} point point to be added
    */
   add(point) {
-    this.points.push(point)
+    this.vertices.push(point)
   }
 }
 
@@ -126,44 +126,57 @@ class Camera {
     this.transformationMatrixInverse = this.transformationMatrix.inverse()
   }
 
+  applyMatrix(n) {
+    this.transformationMatrix.applyMatrix(n)
+    this.transformationMatrixInverse = this.transformationMatrix.inverse()
+  }
+
+  inverse() {
+    return this.transformationMatrix.inverse()
+  }
+
 }
 
-class Renderer {
-  render() { }
-}
+const cube = new Mesh()
+cube.transformationMatrix.setPosition(0, 0, 0)
+// cube.add(new Vector4(1, 1, 1))
+// cube.add(new Vector4(-1, 1, 1))
+// cube.add(new Vector4(-1, -1, 1))
 
-const group = new Group()
-group.transformationMatrix.setPosition(0, 0, 0)
-group.add(new Vector4(1, 1, 1))
-group.add(new Vector4(-1, 1, 1))
-group.add(new Vector4(-1, -1, 1))
+// cube.add(new Vector4(-1, -1, 1))
+// cube.add(new Vector4(1, -1, 1))
+// cube.add(new Vector4(1, 1, 1))
 
-group.add(new Vector4(-1, -1, 1))
-group.add(new Vector4(1, -1, 1))
-group.add(new Vector4(1, 1, 1))
+// cube.add(new Vector4(-1, -1, -1))
+// cube.add(new Vector4(-1, 1, -1))
+// cube.add(new Vector4(1, 1, -1))
 
-group.add(new Vector4(-1, -1, -1))
-group.add(new Vector4(-1, 1, -1))
-group.add(new Vector4(1, 1, -1))
-
-group.add(new Vector4(1, 1, -1))
-group.add(new Vector4(1, -1, -1))
-group.add(new Vector4(-1, -1, -1))
+// cube.add(new Vector4(1, 1, -1))
+// cube.add(new Vector4(1, -1, -1))
+// cube.add(new Vector4(-1, -1, -1))
 
 const camera = new Camera()
 camera.setPosition(0, 0, 8)
 
-const lightNormal = new Vector4(0, 0, -1)
+const rotateXMatrix = new Matrix4()
+rotateXMatrix.setRotationX(Math.PI / 90)
+
+const lightVector = new Vector4(1, 0, -1)
+
+let buffer
 
 function start(e) {
   // group.transformationMatrix.setRotationY(0)
-  group.transformationMatrix.setRotationY(e / 1000)
+  cube.transformationMatrix.setRotationY(e / 1000)
+  // group.transformationMatrix.setRotationX(e / 1000)
+
+  // camera.applyMatrix(rotateXMatrix)
 
   ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
   ctx.fillStyle = "white";
   const points = []
-  const modelViewTransform = group.transformationMatrix.multiply(camera.transformationMatrixInverse).multiply(camera.projectionMatrix)
-  group.points.forEach((point) => {
+  const modelViewTransform = cube.transformationMatrix.multiply(camera.inverse()).multiply(camera.projectionMatrix)
+  cube.vertices.forEach((point) => {
     points.push(point.multiply(modelViewTransform))
   })
   points.forEach((point) => {
@@ -187,16 +200,17 @@ function start(e) {
     )
 
     const triNormal = cross([side1Vector.x, side1Vector.y, side1Vector.z], [side2Vector.x, side2Vector.y, side2Vector.z])
-    const lightDotTriNormal = dot([lightNormal.x, lightNormal.y, lightNormal.z], triNormal)
+    const lightDotTriNormal = dot([lightVector.x, lightVector.y, lightVector.z], triNormal)
     // const angle = Math.acos(Math.abs(lightDotTriNormal)) * (180 / Math.PI)
 
     // console.log(triNorsmal, lightDotTriNormal)
 
-    if (lightDotTriNormal >= 0) {
-      continue
-    }
+    // if (lightDotTriNormal >= 0) {
+    //   continue
+    // }
 
-    ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(lightDotTriNormal / 40)})`
+    // ctx.fillStyle = `rgba(0, 255, 0, ${Math.abs(lightDotTriNormal / 40)})`
+    ctx.fillStyle = `rgba(0, 255, 0, 1)`
 
     ctx.beginPath()
     ctx.moveTo(points[i].x * canvas.width / (2 * points[i].w) + canvas.width / 2, -(points[i].y * canvas.height / (2 * points[i].w)) + canvas.height / 2)
@@ -209,4 +223,49 @@ function start(e) {
   requestAnimationFrame(start)
 }
 
-start(0)
+function main() {
+  fetch('/thpwp2IcJ8ZBoe9M5Rau')
+    .then(async res => {
+      const contentLength = +res.headers.get('Content-Length');
+      const reader = res.body?.getReader();
+
+      let receivedLength = 0;
+      let chunks = [];
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (value) {
+            chunks.push(value);
+            receivedLength += value.length;
+          }
+
+          if (done) {
+            break;
+          }
+        }
+
+        let chunksAll = new Uint8Array(receivedLength);
+        let position = 0;
+        for (let chunk of chunks) {
+          chunksAll.set(chunk, position);
+          position += chunk.length;
+        }
+
+        buffer = chunksAll.buffer;
+
+        const positions = new Float32Array(buffer.slice(0, 432));
+
+        console.log(positions)
+
+        for (let i = 0; i < positions.length; i +=3) {
+          cube.add(new Vector4(positions[i], positions[i + 1], positions[i + 2]))
+        }
+
+      }
+    })
+
+  start(0)
+}
+
+main()
