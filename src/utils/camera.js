@@ -13,19 +13,33 @@ export class Camera {
     this.canvas.width = this.imageWidth
     this.canvas.height = this.imageHeight
     this.imageData = this.ctx.createImageData(this.imageWidth, this.imageHeight)
-    this.viewportHeight = 2
+    this.aspectRatio = window.innerWidth / window.innerHeight
+    this.samplesPerPixel = 100
+    this.maxDepth = 10
+
+    this.fov = Math.PI * 65 / 180
+    this.lookFrom = new Vector3(-2, 2, 1)
+    this.lookAt = new Vector3(0, 0, -1)
+    this.vup = new Vector3(0, 1, 0)
+    this.cameraCenter = this.lookFrom
+
+    this.w = this.lookFrom.sub(this.lookAt).unit()
+    this.u = this.vup.cross(this.w).unit()
+    this.v = this.w.cross(this.u)
+
+    this.focalLength = this.lookFrom.sub(this.lookAt).length()
+
+    const h = Math.tan(this.fov / 2)
+    this.viewportHeight = 2 * h * this.focalLength
     this.viewportWidth = this.viewportHeight * (this.imageWidth / this.imageHeight)
-    this.focalLength = 1
-    this.cameraCenter = new Vector3(0, 0, 0)
-    this.viewportU = new Vector3(this.viewportWidth, 0, 0)
-    this.viewportV = new Vector3(0, -this.viewportHeight, 0)
+
+
+    this.viewportU = this.u.multiplyScalar(this.viewportWidth)
+    this.viewportV = this.v.multiplyScalar(-this.viewportHeight)
     this.pixelDeltaU = this.viewportU.divideScalar(this.imageWidth)
     this.pixelDeltaV = this.viewportV.divideScalar(this.imageHeight)
-    this.viewportUpperLeft = this.cameraCenter.sub(new Vector3(0, 0, this.focalLength)).sub(this.viewportU.divideScalar(2)).sub(this.viewportV.divideScalar(2))
+    this.viewportUpperLeft = this.cameraCenter.sub(this.w.multiplyScalar(this.focalLength)).sub(this.viewportU.divideScalar(2)).sub(this.viewportV.divideScalar(2))
     this.pixel00Location = this.viewportUpperLeft.add(this.pixelDeltaU.multiplyScalar(0.5).add(this.pixelDeltaV.multiplyScalar(0.5)))
-    this.aspectRatio = window.innerWidth / window.innerHeight
-    this.samplesPerPixel = 500
-    this.maxDepth = 10
   }
 
   /**
@@ -63,7 +77,7 @@ export class Camera {
    */
   rayColor(ray, depth, world) {
     if (depth <= 0)
-      return new Vector3(0,0,0);
+      return new Vector3(0, 0, 0);
 
     const rec = new HitRecord()
 
@@ -71,7 +85,7 @@ export class Camera {
       const scattered = new Ray()
       const attenuation = new Vector3()
 
-      if(rec.material.scatter(ray, rec, attenuation, scattered)) {
+      if (rec.material.scatter(ray, rec, attenuation, scattered)) {
         return attenuation.multiply(this.rayColor(scattered, depth - 1, world))
       }
 

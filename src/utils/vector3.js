@@ -53,6 +53,18 @@ export class Vector3 {
   }
 
   /**
+   * 
+   * @param {Vector3} v 
+   * @returns {Vector3}
+   */
+  cross(v) {
+    const x = this.y * v.z - this.z * v.y
+    const y = this.z * v.x - this.x * v.z
+    const z = this.x * v.y - this.y * v.x
+    return new Vector3(x, y, z)
+  }
+
+  /**
    *
    * @param {Vector3} v
    * @returns {Vector3}
