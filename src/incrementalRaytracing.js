@@ -31,10 +31,10 @@ world.add(new InfinitePlane(-1, groundMaterial))
 
 const now = performance.now()
 
-const worker1 = new Worker('./src/renderWorker.js')
-const worker2 = new Worker('./src/renderWorker.js')
-const worker3 = new Worker('./src/renderWorker.js')
-const worker4 = new Worker('./src/renderWorker.js')
+const worker1 = new Worker('./src/incrementalRenderWorker.js')
+const worker2 = new Worker('./src/incrementalRenderWorker.js')
+const worker3 = new Worker('./src/incrementalRenderWorker.js')
+const worker4 = new Worker('./src/incrementalRenderWorker.js')
 
 function onMessage(event) {
   const {
@@ -45,10 +45,10 @@ function onMessage(event) {
     imageData,
   } = event.data
 
-  console.log('received from worker', imageData)
+  // console.log('received from worker', imageData)
   ctx.putImageData(imageData, hRangeStart, vRangeStart)
 
-  console.log('worker render time', performance.now() - now)
+  // console.log('worker render time', performance.now() - now)
 }
 
 worker1.onmessage = onMessage

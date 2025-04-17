@@ -1,24 +1,27 @@
-import { writeColor } from './color'
+import { mergeColor, writeColor } from './color'
 import { Interval } from "./interval";
 import { randomNumber } from './math';
 import { HitRecord, Hittable, Ray } from "./ray";
 import { Vector3 } from "./vector3";
 
 export class Camera {
-  constructor() {
-    this.imageWidth = window.innerWidth
-    this.imageHeight = window.innerHeight
-    this.canvas = document.querySelector('#main')
-    this.ctx = this.canvas.getContext('2d')
-    this.canvas.width = this.imageWidth
-    this.canvas.height = this.imageHeight
-    this.imageData = this.ctx.createImageData(this.imageWidth, this.imageHeight)
-    this.aspectRatio = window.innerWidth / window.innerHeight
-    this.samplesPerPixel = 100
+  constructor(width, height, imageData) {
+    this.imageWidth = width
+    this.imageHeight = height
+    this.imageData = imageData
+    this.aspectRatio = width / height
+    this.samplesPerPixel = 200
     this.maxDepth = 10
+    this.numberOfSamples = 0
+    this.colorBuffer = Array(imageData.data.byteLength).fill(0)
+
+    this.widthRangeStart = 0
+    this.widthRangeEnd = width
+    this.heightRangeStart = 0
+    this.heightRangeEnd = height
 
     this.fov = Math.PI * 65 / 180
-    this.lookFrom = new Vector3(-2, 2, 1)
+    this.lookFrom = new Vector3(0, 0, 0)
     this.lookAt = new Vector3(0, 0, -1)
     this.vup = new Vector3(0, 1, 0)
     this.cameraCenter = this.lookFrom
@@ -33,7 +36,6 @@ export class Camera {
     this.viewportHeight = 2 * h * this.focalLength
     this.viewportWidth = this.viewportHeight * (this.imageWidth / this.imageHeight)
 
-
     this.viewportU = this.u.multiplyScalar(this.viewportWidth)
     this.viewportV = this.v.multiplyScalar(-this.viewportHeight)
     this.pixelDeltaU = this.viewportU.divideScalar(this.imageWidth)
@@ -47,11 +49,11 @@ export class Camera {
    * @param {Hittable} world
    */
   render(world) {
-    const heightRangeStart = 0
-    const heightRangeEnd = this.imageHeight
+    const heightRangeStart = this.heightRangeStart
+    const heightRangeEnd = this.heightRangeEnd
 
-    const widthRangeStart = 0
-    const widthRangeEnd = this.imageWidth
+    const widthRangeStart = this.widthRangeStart
+    const widthRangeEnd = this.widthRangeEnd
 
     for (let j = heightRangeStart; j < heightRangeEnd; j++) {
       for (let i = widthRangeStart; i < widthRangeEnd; i++) {
@@ -62,11 +64,33 @@ export class Camera {
           color = color.add(this.rayColor(ray, this.maxDepth, world))
         }
 
-        writeColor(color.divideScalar(this.samplesPerPixel), i, j, this.imageData)
+        writeColor(color.divideScalar(this.samplesPerPixel), i, j, this.imageData, widthRangeStart, heightRangeStart)
       }
     }
+  }
 
-    this.ctx.putImageData(this.imageData, 0, 0);
+  /**
+   *
+   * @param {Hittable} world
+   */
+  incrementalRender(world) {
+    const heightRangeStart = this.heightRangeStart
+    const heightRangeEnd = this.heightRangeEnd
+
+    const widthRangeStart = this.widthRangeStart
+    const widthRangeEnd = this.widthRangeEnd
+
+    this.numberOfSamples++
+
+    for (let j = heightRangeStart; j < heightRangeEnd; j++) {
+      for (let i = widthRangeStart; i < widthRangeEnd; i++) {
+        const ray = this.getRay(i, j)
+        const color = this.rayColor(ray, this.maxDepth, world)
+
+
+        mergeColor(color, i, j, this.imageData, widthRangeStart, heightRangeStart, this.numberOfSamples, this.colorBuffer)
+      }
+    }
   }
 
   /**

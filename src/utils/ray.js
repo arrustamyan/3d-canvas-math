@@ -159,3 +159,37 @@ export class Sphere extends Hittable {
   }
 
 }
+
+export class InfinitePlane {
+  constructor(h, material) {
+    this.h = h
+    this.material = material
+  }
+
+  /**
+   *
+   * @param {Ray} ray
+   * @param {Interval} interval
+   * @param {HitRecord} rec
+   * @returns boolean
+   */
+  hit(ray, interval, rec) {
+    const planeOrigin = new Vector3(0, this.h, 0)
+    const planeNormal = new Vector3(0, 1, 0)
+
+    const t = planeOrigin.sub(ray.origin).dot(planeNormal) / ray.direction.dot(planeNormal)
+
+    if (t <= 0 || !interval.surrounds(t)) {
+      return false
+    }
+
+    rec.t = t
+    rec.p = ray.at(rec.t)
+    const outwardNormal = planeNormal
+    rec.setFaceNormal(ray, outwardNormal)
+    rec.material = this.material
+
+    return true
+  }
+
+}
