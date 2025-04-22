@@ -9,9 +9,9 @@ export class Material {
 }
 
 export class Lambertian extends Material {
-  constructor(albedo) {
+  constructor(texture) {
     super()
-    this.albedo = albedo
+    this.texture = texture
   }
 
   /**
@@ -29,7 +29,7 @@ export class Lambertian extends Material {
       scatterDirection.copy(rec.normal)
     }
     scattered.copy(new Ray(rec.p, scatterDirection.sub(rec.p)))
-    attenuation.copy(this.albedo)
+    attenuation.copy(this.texture.value(rec.u, rec.v, rec.object))
     return true
   }
 }
@@ -56,17 +56,6 @@ export class Metal extends Material {
     return true
   }
 }
-
-/**
- *      attenuation = color(1.0, 1.0, 1.0);
-        double ri = rec.front_face ? (1.0/refraction_index) : refraction_index;
-
-        vec3 unit_direction = unit_vector(r_in.direction());
-        vec3 refracted = refract(unit_direction, rec.normal, ri);
-
-        scattered = ray(rec.p, refracted);
-        return true;
- */
 
 export class Dielectric extends Material {
   constructor(refractionIndex) {

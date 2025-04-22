@@ -36,6 +36,8 @@ export class HitRecord {
     this.p = new Vector3(0, 0, 0)
     this.normal = new Vector3(0, 0, 0)
     this.t = 0
+    this.u = 0
+    this.v = 0
     this.frontFace = false
     this.material = null
   }
@@ -56,10 +58,13 @@ export class HitRecord {
    */
   cloneTo(record) {
     record.p = this.p
+    record.u = this.u
+    record.v = this.v
     record.normal = this.normal
     record.t = this.t
     record.frontFace = this.frontFace
     record.material = this.material
+    record.object = this.object
   }
 }
 
@@ -188,6 +193,62 @@ export class InfinitePlane {
     const outwardNormal = planeNormal
     rec.setFaceNormal(ray, outwardNormal)
     rec.material = this.material
+
+    return true
+  }
+
+}
+
+export class Triangle extends Hittable {
+  constructor(p0, p1, p2, material) {
+    super()
+    this.p0 = p0
+    this.p1 = p1
+    this.p2 = p2
+    this.material = material
+  }
+
+  /**
+   *
+   * @param {Ray} ray
+   * @param {Interval} interval
+   * @param {HitRecord} rec
+   * @returns boolean
+   */
+  hit(ray, interval, rec) {
+    const edge1 = this.p1.sub(this.p0)
+    const edge2 = this.p2.sub(this.p0)
+    const h = ray.direction.cross(edge2)
+    const a = edge1.dot(h)
+
+    if (a > -1e-8 && a < 1e-8) {
+      return false
+    }
+    const f = 1 / a
+    const s = ray.origin.sub(this.p0)
+    const u = f * s.dot(h)
+    if (u <= 0 || u > 1) {
+      return false
+    }
+    const q = s.cross(edge1)
+    const v = f * ray.direction.dot(q)
+    if (v <= 0 || u + v > 1) {
+      return false
+    }
+    const t = f * edge2.dot(q)
+    if (t < interval.min || t > interval.max) {
+      return false
+    }
+
+    rec.t = t
+    rec.p = ray.at(t)
+    rec.u = u
+    rec.v = v
+    rec.material = this.material
+    const outwardNormal = edge1.cross(edge2).unit()
+    rec.setFaceNormal(ray, outwardNormal)
+    rec.frontFace = ray.direction.dot(outwardNormal) < 0
+    rec.object = this
 
     return true
   }
