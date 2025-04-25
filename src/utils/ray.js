@@ -193,6 +193,7 @@ export class InfinitePlane {
     const outwardNormal = planeNormal
     rec.setFaceNormal(ray, outwardNormal)
     rec.material = this.material
+    rec.object = this
 
     return true
   }
@@ -200,12 +201,15 @@ export class InfinitePlane {
 }
 
 export class Triangle extends Hittable {
-  constructor(p0, p1, p2, material) {
+  constructor(p0, p1, p2, material, uv0, uv1, uv2) {
     super()
     this.p0 = p0
     this.p1 = p1
     this.p2 = p2
     this.material = material
+    this.uv0 = uv0
+    this.uv1 = uv1
+    this.uv2 = uv2
   }
 
   /**

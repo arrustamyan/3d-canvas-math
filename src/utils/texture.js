@@ -20,7 +20,7 @@ export class CheckerTexture extends Texture {
     this.odd = odd
     this.even = even
   }
-  value(u, v, p) {
+  value(u, v, p, o) {
     const sines = Math.sin(this.scale * p.x) * Math.sin(this.scale * p.y) * Math.sin(this.scale * p.z)
     return sines < 0 ? this.odd : this.even
   }
@@ -68,14 +68,16 @@ export class ImageTexture extends Texture {
     this.imageData = imageData.data; // Store pixel data
   }
 
-  value(u, v, o) {
-    //u = i * u2 + j * u3 + (1 - i - j) * u1
-    //v = i * v2 + j * v3 + (1 - i - j) * v1
+  value(u, v, p, o) {
+    const alpha = u
+    const beta = v
+    const gamma = 1 - alpha - beta
 
-    const localU = (u + v) * 1
-    const localV = v * 1
-
+    const localU = gamma * o.uv0.x + alpha * o.uv1.x + beta * o.uv2.x
+    const localV = gamma * o.uv0.y + alpha * o.uv1.y + beta * o.uv2.y
+ 
     // return new Vector3(localU, localV, 0)
+    // return new Vector3(alpha, beta, gamma)
     const i = Math.floor(localU * this.width)
     const j = Math.floor((1 - localV) * this.height - 0.001)
     if (i < 0 || i >= this.width || j < 0 || j >= this.height) {

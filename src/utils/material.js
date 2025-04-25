@@ -29,7 +29,7 @@ export class Lambertian extends Material {
       scatterDirection.copy(rec.normal)
     }
     scattered.copy(new Ray(rec.p, scatterDirection.sub(rec.p)))
-    attenuation.copy(this.texture.value(rec.u, rec.v, rec.object))
+    attenuation.copy(this.texture.value(rec.u, rec.v, rec.p, rec.object))
     return true
   }
 }

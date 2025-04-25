@@ -38,7 +38,7 @@ self.onmessage = async function (event) {
   camera.heightRangeStart = Math.floor(vRangeStart)
   camera.heightRangeEnd = Math.floor(vRangeEnd)
 
-  const imageTexture = new ImageTexture('/texture.jpeg', 650, 944)
+  const imageTexture = new ImageTexture('/texture.jpeg', 1024, 1024)
   await imageTexture.load()
 
   const groundMaterial = new Lambertian(new CheckerTexture(10, new Vector3(0.8, 0.8, 0), new Vector3(0.2, 0.2, 0)))
@@ -53,54 +53,60 @@ self.onmessage = async function (event) {
     new Vector3(0.2, -0.2, -0.2),
     new Vector3(0.2, 0.2, -0.2),
     centerMaterial,
+    new Vector3(0, 0, 0),
+    new Vector3(1, 0, 0),
+    new Vector3(1, 1, 0),
   ))
   world.add(new Triangle(
     new Vector3(-0.2, -0.2, -0.2),
     new Vector3(0.2, 0.2, -0.2),
     new Vector3(-0.2, 0.2, -0.2),
     centerMaterial,
+    new Vector3(0, 0, 0),
+    new Vector3(1, 1, 0),
+    new Vector3(0, 1, 0),
   ))
 
-  world.add(new Triangle(
-    new Vector3(-0.2, -0.2, -0.4),
-    new Vector3(-0.2, -0.2, -0.2),
-    new Vector3(-0.2, 0.2, -0.2),
-    centerMaterial,
-  ))
+  // world.add(new Triangle(
+  //   new Vector3(-0.2, -0.2, -0.4),
+  //   new Vector3(-0.2, -0.2, -0.2),
+  //   new Vector3(-0.2, 0.2, -0.2),
+  //   centerMaterial,
+  // ))
 
-  world.add(new Triangle(
-    new Vector3(-0.2, -0.2, -0.4),
-    new Vector3(-0.2, 0.2, -0.2),
-    new Vector3(-0.2, 0.2, -0.4),
-    centerMaterial,
-  ))
+  // world.add(new Triangle(
+  //   new Vector3(-0.2, -0.2, -0.4),
+  //   new Vector3(-0.2, 0.2, -0.2),
+  //   new Vector3(-0.2, 0.2, -0.4),
+  //   centerMaterial,
+  // ))
 
-  world.add(new Triangle(
-    new Vector3(-0.2, 0.2, -0.2),
-    new Vector3(0.2, 0.2, -0.2),
-    new Vector3(0.2, 0.2, -0.4),
-    centerMaterial,
-  ))
+  // world.add(new Triangle(
+  //   new Vector3(-0.2, 0.2, -0.2),
+  //   new Vector3(0.2, 0.2, -0.2),
+  //   new Vector3(0.2, 0.2, -0.4),
+  //   centerMaterial,
+  // ))
 
-  world.add(new Triangle(
-    new Vector3(-0.2, 0.2, -0.2),
-    new Vector3(0.2, 0.2, -0.4),
-    new Vector3(-0.2, 0.2, -0.4),
-    centerMaterial,
-  ))
+  // world.add(new Triangle(
+  //   new Vector3(-0.2, 0.2, -0.2),
+  //   new Vector3(0.2, 0.2, -0.4),
+  //   new Vector3(-0.2, 0.2, -0.4),
+  //   centerMaterial,
+  // ))
 
-  world.add(new Triangle(
-    new Vector3(-0.2, -0.2, -0.4),
-    new Vector3(0.2, -0.2, -0.4),
-    new Vector3(0.2, 0.2, -0.4),
-    centerMaterial,
-  ))
-  world.add(new Triangle(
-    new Vector3(-0.2, -0.2, -0.4),
-    new Vector3(0.2, 0.2, -0.4),
-    new Vector3(-0.2, 0.2, -0.4),
-    centerMaterial,
-  ))
+  // world.add(new Triangle(
+  //   new Vector3(-0.2, -0.2, -0.4),
+  //   new Vector3(0.2, -0.2, -0.4),
+  //   new Vector3(0.2, 0.2, -0.4),
+  //   centerMaterial,
+  // ))
+  // world.add(new Triangle(
+  //   new Vector3(-0.2, -0.2, -0.4),
+  //   new Vector3(0.2, 0.2, -0.4),
+  //   new Vector3(-0.2, 0.2, -0.4),
+  //   centerMaterial,
+  // ))
 
 
   // world.add(new Sphere(new Vector3(1.0, 0.0, -1.0), 0.5, metalMaterial))
