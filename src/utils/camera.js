@@ -10,7 +10,7 @@ export class Camera {
     this.imageHeight = height
     this.imageData = imageData
     this.aspectRatio = width / height
-    this.samplesPerPixel = 500
+    this.samplesPerPixel = 10
     this.maxDepth = 10
     this.numberOfSamples = 0
     this.colorBuffer = Array(imageData.data.byteLength).fill(0)
