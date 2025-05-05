@@ -3,7 +3,6 @@ import './style.css'
 
 const canvas = document.querySelector('#main')
 const ctx = canvas.getContext('2d')
-const unitPhysicalSizePx = 20
 
 canvas.width = window.innerWidth
 canvas.height = window.innerHeight
