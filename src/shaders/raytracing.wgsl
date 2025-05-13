@@ -3,7 +3,7 @@ const screenWidth = 858.0;
 const screenHeight = 400.0;
 const aspect = screenWidth / screenHeight;
 const fov = 65.0 * pi / 180.0;
-const lookFrom = vec3f(0.0, 0.0, 3.2);
+const lookFrom = vec3f(-5.0, 2.0, 3.2);
 const lookAt = vec3f(0.0, 0.0, - 1.0);
 const vup = vec3f(0.0, 1.0, 0.0);
 const w = normalize(lookFrom - lookAt);
@@ -69,7 +69,7 @@ fn hit(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitRecord>) 
     var closestSoFar = 1e8;
     var hitSomething = false;
     for (var k: u32 = 0; k < arrayLength(&scene); k += 9) {
-        var p0 = vec3f(scene[k], scene[k + 1], scene[k + 2]);
+        var p0 = vec3f(scene[k],     scene[k + 1], scene[k + 2]);
         var p1 = vec3f(scene[k + 3], scene[k + 4], scene[k + 5]);
         var p2 = vec3f(scene[k + 6], scene[k + 7], scene[k + 8]);
 

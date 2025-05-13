@@ -7,6 +7,8 @@ async function main() {
   const adapter = await navigator.gpu?.requestAdapter()
   const device = await adapter?.requestDevice()
 
+  // console.log('positions', positions)
+
   if (!device) {
     throw new Error('need a browser that supports WebGPU')
   }
@@ -23,15 +25,13 @@ async function main() {
 
   // Add two triangles to form a ground
   const groundTriangles = new Float32Array([
-    // First triangle
-    -10.0, -10.0, -2.0,  // Bottom-left
-    10.0, -10.0, -2.0,  // Bottom-right
-    -10.0, 10.0, -2.0,  // Top-left
-
-    // Second triangle
-    1.0, -1.0, -2.0,  // Bottom-right
-    1.0, 0.0, -2.0,  // Top-right
-    -1.0, 0.0, -2.0,  // Top-left
+    100.0, -1.0, -100.0,
+    100.0, -1.0, 100.0,
+    -100.0, -1.0, 100.0,
+ 
+    -100.0, -1.0, 100.0,
+    -100.0, -1.0, -100.0,
+    100.0, -1.0, -100.0,
   ])
 
   // Combine the original positions with the ground triangles
@@ -62,6 +62,9 @@ async function main() {
       entryPoint: 'fs',
       module,
       targets: [{ format: presentationFormat }],
+    },
+    primitive: {
+      cullMode: 'none', // Disable face culling
     },
   })
 
