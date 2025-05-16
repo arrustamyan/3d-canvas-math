@@ -3,8 +3,8 @@ const screenWidth = 858.0;
 const screenHeight = 400.0;
 const aspect = screenWidth / screenHeight;
 const fov = 65.0 * pi / 180.0;
-const lookFrom = vec3f(-5.0, 2.0, 3.2);
-const lookAt = vec3f(0.0, 0.0, - 1.0);
+const lookFrom = vec3f(2.0, 0.0, - 4.2);
+const lookAt = vec3f(0.0, 0.0, 0.0);
 const vup = vec3f(0.0, 1.0, 0.0);
 const w = normalize(lookFrom - lookAt);
 const u = normalize(cross(vup, w));
@@ -22,12 +22,12 @@ const pixel00Location = viewportUpperLeft + pixelDeltaU / 2.0 + pixelDeltaV / 2.
 
 @group(0) @binding(0)
 var<storage, read> scene: array<f32>;
+@group(0) @binding(1)
+var ourSampler: sampler;
+@group(0) @binding(2)
+var blueNoiseTexture: texture_2d<f32>;
 
 const pos = array(vec2f(- 1.0, - 1.0), vec2f(3.0, - 1.0), vec2f(- 1.0, 3.0));
-
-fn rand() -> f32 {
-    return fract(sin(dot(vec2f(0.5, 0.5), vec2f(12.9898, 78.233))) * 43758.5453);
-}
 
 fn intersectTriangle(rayOrigin: vec3f, rayDirection: vec3f, p0: vec3f, p1: vec3f, p2: vec3f, rec: ptr<function, HitRecord>) -> bool {
     var edge1 = p1 - p0;
@@ -68,19 +68,24 @@ fn hit(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitRecord>) 
     var tempRecord: HitRecord;
     var closestSoFar = 1e8;
     var hitSomething = false;
+
     for (var k: u32 = 0; k < arrayLength(&scene); k += 9) {
-        var p0 = vec3f(scene[k],     scene[k + 1], scene[k + 2]);
+        var p0 = vec3f(scene[k], scene[k + 1], scene[k + 2]);
         var p1 = vec3f(scene[k + 3], scene[k + 4], scene[k + 5]);
         var p2 = vec3f(scene[k + 6], scene[k + 7], scene[k + 8]);
 
-        if (intersectTriangle(rayOrigin, rayDirection, p0, p1, p2, &tempRecord)) {
+        if (intersectTriangle(rayOrigin, rayDirection, p0, p1, p2, & tempRecord)) {
             hitSomething = true;
+
             if (tempRecord.t < closestSoFar && tempRecord.t > 0.001) {
+                var normal = cross(p1 - p0, p2 - p0);
+
                 closestSoFar = tempRecord.t;
-                record.t = tempRecord.t;
-                record.u = tempRecord.u;
-                record.v = tempRecord.v;
-                record.normal = normalize(cross(p1 - p0, p2 - p0));
+
+                (*record).t = tempRecord.t;
+                (*record).u = tempRecord.u;
+                (*record).v = tempRecord.v;
+                (*record).normal = normalize(normal);
             }
         }
     }
@@ -88,28 +93,57 @@ fn hit(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitRecord>) 
     return hitSomething;
 }
 
-fn rayColor(rayOrigin: vec3f, rayDirection: vec3f) -> vec4f {
+fn rayColor(rayOrigin: vec3f, rayDirection: vec3f, screenCoord: vec2f) -> vec4f {
+    var noise = textureSample(blueNoiseTexture, ourSampler, screenCoord);
+    let azimuth = noise.r * 2.0 * 3.14159265359;
+    let elevation = noise.g * 3.14159265359;
+    let rand = noise.r * 2 - 1;
+
+    // let perturbation = vec3<f32>(sin(elevation) * cos(azimuth), sin(elevation) * sin(azimuth), cos(elevation));
+    let perturbation = vec3<f32>(rand, rand, rand);
     var record: HitRecord;
 
-    var attenuation = vec3f(1.0, 1.0, 1.0);
+    var attenuation = vec3f(0.0, 0.0, 0.0);
     var currentOrigin = rayOrigin;
     var currentDirection = rayDirection;
+    var bounceCount = 0.0;
+    var hitSky = false;
 
     for (var i: u32 = 0; i < 10; i += 1) {
-        if (hit(rayOrigin, currentDirection, &record)) {
+        var bounceColor = vec3f(0.0, 0.0, 0.0);
+        if (hit(rayOrigin, currentDirection, & record)) {
 
-            currentOrigin = record.t * currentDirection;
-            currentDirection = record.normal + vec3f(rand(), rand(), rand());
+            currentOrigin = currentOrigin + currentDirection * record.t;
+            currentDirection = normalize((record.normal + perturbation)) - currentOrigin;
 
-            attenuation *= vec3f(0.5, 0.5, 0.5);
+            // if (length(currentDirection) < 0.001) {
+            //     currentDirection = record.normal - currentOrigin;
+            // }
+
+            bounceColor = vec3f(0.5, 0.5, 0.5);
         }
         else {
-            var a = 0.4 * (rayDirection.y + 1.0);
-            attenuation *= (1.0 - a) * vec3f(1.0, 1.0, 1.0) + a * vec3f(0.5, 0.7, 1.0);
+            var a = 0.5 * (rayDirection.y + 1.0);
+            bounceColor = (1.0 - a) * vec3f(1.0, 1.0, 1.0) + a * vec3f(0.5, 0.7, 1.0);
+            hitSky = true;
+        }
+
+        bounceCount += 1.0;
+
+        if (bounceCount == 1.0) {
+            attenuation = bounceColor;
+        }
+        else {
+            attenuation *= bounceColor;
+        }
+
+        if (hitSky) {
             break;
         }
     }
 
+    // return noise;
+    // return vec4f(perturbation, 1.0);
     return vec4f(attenuation, 1.0);
 }
 
@@ -137,5 +171,8 @@ fn fs(@builtin(position) position: vec4f) -> @location(0) vec4f {
     var rayOrigin = lookFrom;
     var rayDirection = normalize((pixel00Location + pixelDeltaU * i + pixelDeltaV * j) - rayOrigin);
 
-    return rayColor(rayOrigin, rayDirection);
+    var uv = vec2f(position.x / screenWidth * aspect, 1 - position.y / screenHeight);
+
+    return rayColor(rayOrigin, rayDirection, uv);
+    // return textureSample(blueNoiseTexture, ourSampler, uv);
 }

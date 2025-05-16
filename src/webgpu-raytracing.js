@@ -1,13 +1,14 @@
 import { fetchPositions } from './utils/fetchPositions.js'
+import { loadImageBitmap } from './utils/network.js'
 import raytracingShader from './shaders/raytracing.wgsl?raw'
 import './style.css'
 
 async function main() {
   let positions = await fetchPositions('/thpwp2IcJ8ZBoe9M5Rau')
+  let blueNoiseBitmap = await loadImageBitmap('/blue-noise.png')
+  // let blueNoiseBitmap = await loadImageBitmap('/texture.jpeg')
   const adapter = await navigator.gpu?.requestAdapter()
   const device = await adapter?.requestDevice()
-
-  // console.log('positions', positions)
 
   if (!device) {
     throw new Error('need a browser that supports WebGPU')
@@ -25,13 +26,13 @@ async function main() {
 
   // Add two triangles to form a ground
   const groundTriangles = new Float32Array([
-    100.0, -1.0, -100.0,
-    100.0, -1.0, 100.0,
-    -100.0, -1.0, 100.0,
- 
-    -100.0, -1.0, 100.0,
-    -100.0, -1.0, -100.0,
-    100.0, -1.0, -100.0,
+    100.0, -2.0, 100.0,
+    100.0, -2.0, -100.0,
+    -100.0, -2.0, 100.0,
+
+    -100.0, -2.0, -100.0,
+    -100.0, -2.0, 100.0,
+    100.0, -2.0, -100.0,
   ])
 
   // Combine the original positions with the ground triangles
@@ -39,6 +40,20 @@ async function main() {
   combinedPositions.set(positions)
   combinedPositions.set(groundTriangles, positions.length)
   positions = combinedPositions
+
+  const sampler = device.createSampler({
+    addressModeU: 'repeat',
+    addressModeV: 'repeat',
+    magFilter: 'nearest',
+    minFilter: 'nearest',
+  })
+
+  const texture = device.createTexture({
+    label: 'texture',
+    format: 'rgba8unorm',
+    size: [blueNoiseBitmap.width, blueNoiseBitmap.height],
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
 
   const positionsBuffer = device.createBuffer({
     label: 'positions buffer',
@@ -73,6 +88,8 @@ async function main() {
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: { buffer: positionsBuffer } },
+      { binding: 1, resource: sampler },
+      { binding: 2, resource: texture.createView() },
     ],
   })
 
@@ -89,6 +106,11 @@ async function main() {
   }
 
   device.queue.writeBuffer(positionsBuffer, 0, positions);
+  device.queue.copyExternalImageToTexture(
+    { source: blueNoiseBitmap, flipY: true },
+    { texture },
+    { width: blueNoiseBitmap.width, height: blueNoiseBitmap.height },
+  );
 
   function render(t) {
     // Get the current texture from the canvas context and
