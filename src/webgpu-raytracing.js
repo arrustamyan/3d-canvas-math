@@ -44,8 +44,8 @@ async function main() {
   const sampler = device.createSampler({
     addressModeU: 'repeat',
     addressModeV: 'repeat',
-    magFilter: 'nearest',
-    minFilter: 'nearest',
+    magFilter: 'linear',
+    minFilter: 'linear',
   })
 
   const texture = device.createTexture({
@@ -87,7 +87,7 @@ async function main() {
     label: 'bind group',
     layout: pipeline.getBindGroupLayout(0),
     entries: [
-      { binding: 0, resource: { buffer: positionsBuffer } },
+      // { binding: 0, resource: { buffer: positionsBuffer } },
       { binding: 1, resource: sampler },
       { binding: 2, resource: texture.createView() },
     ],
