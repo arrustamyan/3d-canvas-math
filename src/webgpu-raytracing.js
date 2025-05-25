@@ -130,7 +130,7 @@ async function main() {
     const commandBuffer = encoder.finish()
     device.queue.submit([commandBuffer])
 
-    requestAnimationFrame(render)
+    // requestAnimationFrame(render)
   }
 
   render()

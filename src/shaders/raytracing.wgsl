@@ -19,7 +19,7 @@ const pixelDeltaU = viewportU / screenWidth;
 const pixelDeltaV = viewportV / screenHeight;
 const viewportUpperLeft = lookFrom - w * focalLength - viewportU / 2.0 - viewportV / 2.0;
 const pixel00Location = viewportUpperLeft + pixelDeltaU / 2.0 + pixelDeltaV / 2.0;
-const samplesPerPixel = 10.0;
+const samplesPerPixel = 100.0;
 const maxDepth = 10.0;
 
 const sphere1 = Sphere(vec3f(0.0, 0.0, - 1.0), 0.5);
@@ -140,58 +140,7 @@ fn hitScene(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitReco
     return hitSomething;
 }
 
-// fn rayColor(rayOrigin: vec3f, rayDirection: vec3f, screenCoord: vec2f) -> vec4f {
-//     var randX = rndomFloat(screenCoord);
-//     var randY = rndomFloat(screenCoord);
-//     var randZ = rndomFloat(screenCoord);
-
-//     let perturbation = vec3<f32>(randX, randY, randZ);
-//     var record: HitRecord;
-
-//     var attenuation = vec3f(0.0, 0.0, 0.0);
-//     var currentOrigin = rayOrigin;
-//     var currentDirection = rayDirection;
-//     var bounceCount = 0.0;
-//     var hitSky = false;
-
-//     for (var i: u32 = 0; i < 0; i += 1) {
-//         var bounceColor = vec3f(0.0, 0.0, 0.0);
-//         if (hit(rayOrigin, currentDirection, & record)) {
-
-//             currentOrigin = currentOrigin + currentDirection * record.t;
-//             currentDirection = normalize((record.normal + perturbation)) - currentOrigin;
-
-//             // if (length(currentDirection) < 0.001) {
-//             //     currentDirection = record.normal - currentOrigin;
-//             // }
-
-//             bounceColor = vec3f(0.5, 0.5, 0.5);
-//         }
-//         else {
-//             var a = 0.5 * (rayDirection.y + 1.0);
-//             bounceColor = (1.0 - a) * vec3f(1.0, 1.0, 1.0) + a * vec3f(0.5, 0.7, 1.0);
-//             hitSky = true;
-//         }
-
-//         bounceCount += 1.0;
-
-//         if (bounceCount == 1.0) {
-//             attenuation = bounceColor;
-//         }
-//         else {
-//             attenuation *= bounceColor;
-//         }
-
-//         if (hitSky) {
-//             break;
-//         }
-//     }
-
-//     return vec4f(currentDirection, 1.0);
-//     // return vec4f(attenuation, 1.0);
-// }
-
-fn hit_sphere(center: vec3f, radius: f32, ray: Ray, rec: ptr<function, HitRecord>, interval: ptr<function, Interval>) -> bool {
+fn hit_sphere(center: vec3f, radius: f32, ray: Ray, rec: ptr<function, HitRecord>, interval: Interval) -> bool {
     var oc = ray.origin - center;
     var a = dot(ray.direction, ray.direction);
     var b = 2.0 * dot(oc, ray.direction);
@@ -228,24 +177,25 @@ fn hit_sphere(center: vec3f, radius: f32, ray: Ray, rec: ptr<function, HitRecord
     return true;
 }
 
-fn hit(ray: Ray, rec: ptr<function, HitRecord>, interval: ptr<function, Interval>) -> bool {
+fn hit(ray: Ray, rec: ptr<function, HitRecord>, interval: Interval) -> bool {
     var tempRec: HitRecord;
     var hitSomething = false;
+    var int = interval;
 
     for (var i: u32 = 0; i < 2u; i += 1) {
-        if (hit_sphere(hittables[i].center, hittables[i].radius, ray, & tempRec, interval)) {
+        if (hit_sphere(hittables[i].center, hittables[i].radius, ray, & tempRec, int)) {
             hitSomething = true;
-            interval.max = tempRec.t;
-            * rec = tempRec;
+            int.max = tempRec.t;
         }
     }
+    * rec = tempRec;
     return hitSomething;
 }
 
 fn rayColor(ray: Ray) -> vec3f {
     var rec: HitRecord;
     var interval = Interval(0.001, 1e8);
-    if (hit(ray, & rec, & interval)) {
+    if (hit(ray, & rec, interval)) {
         return 0.5 * rec.normal + vec3f(1.0, 1.0, 1.0);
     }
 
@@ -276,7 +226,7 @@ fn renderPixel(i: f32, j: f32) -> vec4f {
         var coefficient = 1.0;
 
         for (var k = 0.0; k < maxDepth; k += 1.0) {
-            if (hit(ray, & rec, & interval)) {
+            if (hit(ray, & rec, interval)) {
                 ray.origin = rec.p;
                 ray.direction = randomOnHemisphere(rec.normal, & seed);
                 coefficient *= 0.5;
