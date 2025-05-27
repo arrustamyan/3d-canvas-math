@@ -21,6 +21,7 @@ const viewportUpperLeft = lookFrom - w * focalLength - viewportU / 2.0 - viewpor
 const pixel00Location = viewportUpperLeft + pixelDeltaU / 2.0 + pixelDeltaV / 2.0;
 const samplesPerPixel = 50.0;
 const maxDepth = 10.0;
+const lightDirection = normalize(vec3f(-1.0, -1.0, 1.0));
 
 const sphere1 = Sphere(vec3f(- 2.0, - 0.5, - 1.0), 0.5);
 const sphere2 = Sphere(vec3f(0.0, - 100.5, - 1.0), 100.0);
@@ -284,6 +285,7 @@ fn renderPixel(i: f32, j: f32) -> vec4f {
         var screenCoord = vec2f(i, j);
         var ray = getRay(screenCoord, & seed);
         var hitSomething = false;
+        var hitSky = false;
 
         var coefficient = 1.0;
         var sampleColor = skyColor(ray);
@@ -296,12 +298,18 @@ fn renderPixel(i: f32, j: f32) -> vec4f {
                 ray.direction = randomOnHemisphere(rec.normal, & seed);
             }
             else {
+                hitSky = true;
                 break;
             }
         }
 
         if (!hitSomething) {
             sampleColor = skyColor(ray);
+        }
+        
+        if (hitSomething && hitSky) {
+            // sampleColor *= sqrt(1 - pow(dot(lightDirection, ray.direction), 2));
+            sampleColor *= abs(dot(lightDirection, ray.direction));
         }
 
         color += sampleColor;
