@@ -3,8 +3,8 @@ const screenWidth = 858.0;
 const screenHeight = 858.0;
 const aspect = screenWidth / screenHeight;
 const fov = 65.0 * pi / 180.0;
-const lookFrom = vec3f(0.0, 0.0, 1.0);
-const lookAt = vec3f(0.0, 0.0, - 1.0);
+const lookFrom = vec3f(0.5, 0.5, 3.5);
+const lookAt = vec3f(0.0, 0.0, 0.0);
 const vup = vec3f(0.0, 1.0, 0.0);
 const w = normalize(lookFrom - lookAt);
 const u = normalize(cross(vup, w));
@@ -19,20 +19,26 @@ const pixelDeltaU = viewportU / screenWidth;
 const pixelDeltaV = viewportV / screenHeight;
 const viewportUpperLeft = lookFrom - w * focalLength - viewportU / 2.0 - viewportV / 2.0;
 const pixel00Location = viewportUpperLeft + pixelDeltaU / 2.0 + pixelDeltaV / 2.0;
-const samplesPerPixel = 100.0;
+const samplesPerPixel = 50.0;
 const maxDepth = 10.0;
 
-const sphere1 = Sphere(vec3f(0.0, 0.0, - 1.0), 0.5);
+const sphere1 = Sphere(vec3f(- 2.0, - 0.5, - 1.0), 0.5);
 const sphere2 = Sphere(vec3f(0.0, - 100.5, - 1.0), 100.0);
 
-const hittables = array(sphere1, sphere2);
+const hittables = array(sphere1);
 
 @group(0) @binding(0)
 var<storage, read> scene: array<f32>;
 @group(0) @binding(1)
-var ourSampler: sampler;
+var linearSampler: sampler;
 @group(0) @binding(2)
+var nearestSampler: sampler;
+@group(0) @binding(3)
 var blueNoiseTexture: texture_2d<f32>;
+@group(0) @binding(4)
+var imageTexture: texture_2d<f32>;
+@group(0) @binding(5)
+var imageNormalTexture: texture_2d<f32>;
 
 const pos = array(vec2f(- 1.0, - 1.0), vec2f(3.0, - 1.0), vec2f(- 1.0, 3.0));
 
@@ -111,15 +117,15 @@ fn intersectTriangle(rayOrigin: vec3f, rayDirection: vec3f, p0: vec3f, p1: vec3f
     return true;
 }
 
-fn hitScene(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitRecord>) -> bool {
+fn hit_scene(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitRecord>) -> bool {
     var tempRecord: HitRecord;
     var closestSoFar = 1e8;
     var hitSomething = false;
 
-    for (var k: u32 = 0; k < arrayLength(&scene); k += 9) {
+    for (var k: u32 = 0; k < arrayLength(&scene); k += 15) {
         var p0 = vec3f(scene[k], scene[k + 1], scene[k + 2]);
-        var p1 = vec3f(scene[k + 3], scene[k + 4], scene[k + 5]);
-        var p2 = vec3f(scene[k + 6], scene[k + 7], scene[k + 8]);
+        var p1 = vec3f(scene[k + 5], scene[k + 6], scene[k + 7]);
+        var p2 = vec3f(scene[k + 10], scene[k + 11], scene[k + 12]);
 
         if (intersectTriangle(rayOrigin, rayDirection, p0, p1, p2, & tempRecord)) {
             hitSomething = true;
@@ -130,9 +136,12 @@ fn hitScene(rayOrigin: vec3f, rayDirection: vec3f, record: ptr<function, HitReco
                 closestSoFar = tempRecord.t;
 
                 (*record).t = tempRecord.t;
+                (*record).p = rayOrigin + rayDirection * tempRecord.t;
                 (*record).u = tempRecord.u;
                 (*record).v = tempRecord.v;
+                (*record).material = vec3f(0.8, 0.8, 0.0);
                 (*record).normal = normalize(normal);
+                (*record).trangleIndex = k;
             }
         }
     }
@@ -182,13 +191,22 @@ fn hit(ray: Ray, rec: ptr<function, HitRecord>, interval: Interval) -> bool {
     var hitSomething = false;
     var int = interval;
 
-    for (var i: u32 = 0; i < 2u; i += 1) {
-        if (hit_sphere(hittables[i].center, hittables[i].radius, ray, & tempRec, int)) {
-            hitSomething = true;
+    // for (var i: u32 = 0; i < 2u; i += 1) {
+    //     if (hit_sphere(hittables[i].center, hittables[i].radius, ray, & tempRec, int)) {
+    //         hitSomething = true;
+    //         int.max = tempRec.t;
+    //         * rec = tempRec;
+    //     }
+    // }
+
+    if (hit_scene(ray.origin, ray.direction, & tempRec)) {
+        hitSomething = true;
+        if (tempRec.t < int.max) {
             int.max = tempRec.t;
+            * rec = tempRec;
         }
     }
-    * rec = tempRec;
+
     return hitSomething;
 }
 
@@ -209,9 +227,52 @@ fn skyColor(ray: Ray) -> vec3f {
     return (1.0 - a) * vec3f(1.0, 1.0, 1.0) + a * vec3f(0.5, 0.7, 1.0);
 }
 
+fn surfaceColor(ray: Ray, rec: HitRecord) -> vec3f {
+    var trangleIndex = rec.trangleIndex;
+    if (trangleIndex < 30) {
+        return vec3f(0.8, 0.8, 0.0);
+    }
+
+    var p0UV = vec2f(scene[trangleIndex + 3], scene[trangleIndex + 4]);
+    var p1UV = vec2f(scene[trangleIndex + 8], scene[trangleIndex + 9]);
+    var p2UV = vec2f(scene[trangleIndex + 13], scene[trangleIndex + 14]);
+
+    var alpha = rec.u;
+    var beta = rec.v;
+    var gamma = 1 - alpha - beta;
+
+    var localU = gamma * p0UV.x + alpha * p1UV.x + beta * p2UV.x;
+    var localV = gamma * p0UV.y + alpha * p1UV.y + beta * p2UV.y;
+
+    var sample = textureSampleLevel(imageTexture, nearestSampler, vec2f(localU, localV), 0.0);
+    // sample = vec4f(localU, localV, 0.0, 0.0);
+    // sample = vec4f(rec.u, rec.v, 0.0, 0.0);
+    return sample.rgb;
+}
+
+fn surfaceNormal(ray: Ray, rec: HitRecord) -> vec3f {
+    var trangleIndex = rec.trangleIndex;
+
+    var p0UV = vec2f(scene[trangleIndex + 3], scene[trangleIndex + 4]);
+    var p1UV = vec2f(scene[trangleIndex + 8], scene[trangleIndex + 9]);
+    var p2UV = vec2f(scene[trangleIndex + 13], scene[trangleIndex + 14]);
+
+    var alpha = rec.u;
+    var beta = rec.v;
+    var gamma = 1 - alpha - beta;
+
+    var localU = gamma * p0UV.x + alpha * p1UV.x + beta * p2UV.x;
+    var localV = gamma * p0UV.y + alpha * p1UV.y + beta * p2UV.y;
+
+    var sample = textureSampleLevel(imageNormalTexture, nearestSampler, vec2f(localU, localV), 0.0);
+    // sample = vec4f(localU, localV, 0.0, 0.0);
+    // sample = vec4f(rec.u, rec.v, 0.0, 0.0);
+    return sample.rgb;
+}
+
 fn renderPixel(i: f32, j: f32) -> vec4f {
     let uv = vec2f(i / screenWidth, j / screenHeight);
-    var sample = textureSample(blueNoiseTexture, ourSampler, uv);
+    var sample = textureSample(blueNoiseTexture, linearSampler, uv);
     var seed: u32 = u32(sample.x * 1000.0) * 1000000000u;
 
     var rec: HitRecord;
@@ -222,20 +283,28 @@ fn renderPixel(i: f32, j: f32) -> vec4f {
     for (var s = 0.0; s < samplesPerPixel; s += 1.0) {
         var screenCoord = vec2f(i, j);
         var ray = getRay(screenCoord, & seed);
+        var hitSomething = false;
 
         var coefficient = 1.0;
+        var sampleColor = skyColor(ray);
 
         for (var k = 0.0; k < maxDepth; k += 1.0) {
             if (hit(ray, & rec, interval)) {
+                sampleColor *= surfaceColor(ray, rec);
+                hitSomething = true;
                 ray.origin = rec.p;
                 ray.direction = randomOnHemisphere(rec.normal, & seed);
-                coefficient *= 0.5;
-            } else {
+            }
+            else {
                 break;
             }
         }
 
-        color += (coefficient * skyColor(ray));
+        if (!hitSomething) {
+            sampleColor = skyColor(ray);
+        }
+
+        color += sampleColor;
         // color += vec3f(1.0, 0.0, 0.0);
 
     }
@@ -263,6 +332,8 @@ struct HitRecord {
     v: f32,
     normal: vec3f,
     frontFace: bool,
+    material: vec3f,
+    trangleIndex: u32,
 }
 
 struct Ray {

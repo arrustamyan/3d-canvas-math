@@ -2,10 +2,11 @@ import { fetchPositions } from './utils/fetchPositions.js'
 import { loadImageBitmap } from './utils/network.js'
 import raytracingShader from './shaders/raytracing.wgsl?raw'
 import './style.css'
+import { createCube } from './utils/generator.js'
 
 async function main() {
-  let positions = await fetchPositions('/thpwp2IcJ8ZBoe9M5Rau')
   let blueNoiseBitmap = await loadImageBitmap('/blue-noise.png')
+  let imageBitmap = await loadImageBitmap('/bricks.jpg')
   // let blueNoiseBitmap = await loadImageBitmap('/texture.jpeg')
   const adapter = await navigator.gpu?.requestAdapter()
   const device = await adapter?.requestDevice()
@@ -26,32 +27,53 @@ async function main() {
 
   // Add two triangles to form a ground
   const groundTriangles = new Float32Array([
-    100.0, -2.0, 100.0,
-    100.0, -2.0, -100.0,
-    -100.0, -2.0, 100.0,
+    100.0, -0.5, 100.0, 1, 0,
+    100.0, -0.5, -100.0, 1, 1,
+    -100.0, -0.5, 100.0, 0, 0,
 
-    -100.0, -2.0, -100.0,
-    -100.0, -2.0, 100.0,
-    100.0, -2.0, -100.0,
+    -100.0, -0.5, -100.0, 0, 1,
+    -100.0, -0.5, 100.0, 0, 0,
+    100.0, -0.5, -100.0, 1, 1,
   ])
 
-  // Combine the original positions with the ground triangles
-  const combinedPositions = new Float32Array(positions.length + groundTriangles.length)
-  combinedPositions.set(positions)
-  combinedPositions.set(groundTriangles, positions.length)
-  positions = combinedPositions
+  let cube1 = createCube([0, 0, 0])
+  let cube2 = createCube([-2, 0, -1])
+  let cube3 = createCube([1.5, 0, 1])
 
-  const sampler = device.createSampler({
+  // Combine the original positions with the ground triangles
+  const combinedPositions = new Float32Array(cube1.length + cube2.length + cube3.length + groundTriangles.length)
+  combinedPositions.set(groundTriangles, 0)
+  combinedPositions.set(cube1, groundTriangles.length)
+  combinedPositions.set(cube2, groundTriangles.length + cube1.length)
+  combinedPositions.set(cube3, groundTriangles.length + cube1.length + cube2.length)
+  let positions = combinedPositions
+
+
+  const linearSampler = device.createSampler({
     addressModeU: 'repeat',
     addressModeV: 'repeat',
     magFilter: 'linear',
     minFilter: 'linear',
   })
 
-  const texture = device.createTexture({
+  const nearestSampler = device.createSampler({
+    addressModeU: 'repeat',
+    addressModeV: 'repeat',
+    magFilter: 'nearest',
+    minFilter: 'nearest',
+  })
+
+  const blueNoiseTexture = device.createTexture({
     label: 'texture',
     format: 'rgba8unorm',
     size: [blueNoiseBitmap.width, blueNoiseBitmap.height],
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+  });
+
+  const imageTexture = device.createTexture({
+    label: 'texture',
+    format: 'rgba8unorm',
+    size: [imageBitmap.width, imageBitmap.height],
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
   });
 
@@ -87,9 +109,11 @@ async function main() {
     label: 'bind group',
     layout: pipeline.getBindGroupLayout(0),
     entries: [
-      // { binding: 0, resource: { buffer: positionsBuffer } },
-      { binding: 1, resource: sampler },
-      { binding: 2, resource: texture.createView() },
+      { binding: 0, resource: { buffer: positionsBuffer } },
+      { binding: 1, resource: linearSampler },
+      { binding: 2, resource: nearestSampler },
+      { binding: 3, resource: blueNoiseTexture.createView() },
+      { binding: 4, resource: imageTexture.createView() },
     ],
   })
 
@@ -108,8 +132,13 @@ async function main() {
   device.queue.writeBuffer(positionsBuffer, 0, positions);
   device.queue.copyExternalImageToTexture(
     { source: blueNoiseBitmap, flipY: true },
-    { texture },
+    { texture: blueNoiseTexture },
     { width: blueNoiseBitmap.width, height: blueNoiseBitmap.height },
+  );
+  device.queue.copyExternalImageToTexture(
+    { source: imageBitmap, flipY: true },
+    { texture: imageTexture },
+    { width: imageBitmap.width, height: imageBitmap.height },
   );
 
   function render(t) {
