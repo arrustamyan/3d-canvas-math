@@ -21,7 +21,7 @@ const viewportUpperLeft = lookFrom - w * focalLength - viewportU / 2.0 - viewpor
 const pixel00Location = viewportUpperLeft + pixelDeltaU / 2.0 + pixelDeltaV / 2.0;
 const samplesPerPixel = 50.0;
 const maxDepth = 10.0;
-const lightDirection = normalize(vec3f(-1.0, -1.0, 1.0));
+const lightDirection = vec3f(-1.0, -1.0, 1.0);
 
 const sphere1 = Sphere(vec3f(- 2.0, - 0.5, - 1.0), 0.5);
 const sphere2 = Sphere(vec3f(0.0, - 100.5, - 1.0), 100.0);
