@@ -40,6 +40,12 @@ h1 {
   height: 100%;
 }
 
+#counter {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
 canvas {
   display: block;
 }

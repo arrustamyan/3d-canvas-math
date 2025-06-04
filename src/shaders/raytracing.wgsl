@@ -19,8 +19,8 @@ const pixelDeltaU = viewportU / screenWidth;
 const pixelDeltaV = viewportV / screenHeight;
 const viewportUpperLeft = lookFrom - w * focalLength - viewportU / 2.0 - viewportV / 2.0;
 const pixel00Location = viewportUpperLeft + pixelDeltaU / 2.0 + pixelDeltaV / 2.0;
-const samplesPerPixel = 50.0;
-const maxDepth = 10.0;
+const samplesPerPixel = 1.0;
+const maxDepth = 7.0;
 const lightDirection = vec3f(-1.0, -1.0, 1.0);
 
 const sphere1 = Sphere(vec3f(- 2.0, - 0.5, - 1.0), 0.5);
@@ -39,7 +39,11 @@ var blueNoiseTexture: texture_2d<f32>;
 @group(0) @binding(4)
 var imageTexture: texture_2d<f32>;
 @group(0) @binding(5)
-var imageNormalTexture: texture_2d<f32>;
+var<uniform> sampleCount: u32;
+@group(1) @binding(0)
+var accumulationTexture: texture_storage_2d<rgba32float, write>;
+@group(1) @binding(1)
+var accumulationTextureRead: texture_2d<f32>;
 
 const pos = array(vec2f(- 1.0, - 1.0), vec2f(3.0, - 1.0), vec2f(- 1.0, 3.0));
 
@@ -251,30 +255,11 @@ fn surfaceColor(ray: Ray, rec: HitRecord) -> vec3f {
     return sample.rgb;
 }
 
-fn surfaceNormal(ray: Ray, rec: HitRecord) -> vec3f {
-    var trangleIndex = rec.trangleIndex;
 
-    var p0UV = vec2f(scene[trangleIndex + 3], scene[trangleIndex + 4]);
-    var p1UV = vec2f(scene[trangleIndex + 8], scene[trangleIndex + 9]);
-    var p2UV = vec2f(scene[trangleIndex + 13], scene[trangleIndex + 14]);
-
-    var alpha = rec.u;
-    var beta = rec.v;
-    var gamma = 1 - alpha - beta;
-
-    var localU = gamma * p0UV.x + alpha * p1UV.x + beta * p2UV.x;
-    var localV = gamma * p0UV.y + alpha * p1UV.y + beta * p2UV.y;
-
-    var sample = textureSampleLevel(imageNormalTexture, nearestSampler, vec2f(localU, localV), 0.0);
-    // sample = vec4f(localU, localV, 0.0, 0.0);
-    // sample = vec4f(rec.u, rec.v, 0.0, 0.0);
-    return sample.rgb;
-}
-
-fn renderPixel(i: f32, j: f32) -> vec4f {
+fn renderPixel(i: f32, j: f32, s: f32) -> vec4f {
     let uv = vec2f(i / screenWidth, j / screenHeight);
     var sample = textureSample(blueNoiseTexture, linearSampler, uv);
-    var seed: u32 = u32(sample.x * 1000.0) * 1000000000u;
+    var seed: u32 = u32((sample.x + s) * 1000.0) * 1000000000u;
 
     var rec: HitRecord;
     var interval = Interval(0.001, 1e8);
@@ -370,14 +355,21 @@ fn vs(vert: Vertex) -> @builtin(position) vec4f {
 
 @fragment
 fn fs(@builtin(position) position: vec4f) -> @location(0) vec4f {
-    // var uv = vec2f(position.x / screenWidth * aspect, 1 - position.y / screenHeight);
-    // var rayOrigin = lookFrom;
-    // var rayDirection = normalize((pixel00Location + pixelDeltaU * i + pixelDeltaV * j) - rayOrigin);
-    // return rayColor(rayOrigin, rayDirection, uv);
-
     var i = position.x;
     var j = position.y;
+    let pixelCoord = vec2<i32>(i32(i), i32(j));
+    let count = f32(sampleCount);
 
-    return renderPixel(i, j);
-    // return vec4f(r, b, g, 1.0);
+    // Compute new sample color
+    let newSample = renderPixel(i, j, count).rgb;
+
+    // Read previous accumulated color
+    let prevColor = textureLoad(accumulationTextureRead, pixelCoord, 0).rgb;
+    let accumColor = (prevColor + newSample);
+
+    // Write back to accumulation texture
+    textureStore(accumulationTexture, pixelCoord, vec4f(accumColor, 1.0));
+
+    // Output the accumulated color
+    return vec4f(accumColor, 1.0) / (count + 1);
 }
